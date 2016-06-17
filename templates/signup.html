@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>每日系统运行情况管理系统</title>
+    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="http://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
+    <link href="../static/css/signup.css" rel="stylesheet">
+    <script src="../static/js/jquery-3.0.0.min.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <div class="header">
+        <nav>
+          <ul class="nav nav-pills pull-right">
+            <li role="presentation" ><a href="main">首页</a></li>
+            <li role="presentation"><a href="/showSignIn">登录</a></li>
+            <li role="presentation" class="active"><a href="/showSignUp">注册</a></li>
+          </ul>
+        </nav>
+        <h3 class="text-muted">反馈bug发页面左下角邮箱</h3>
+      </div>
+
+      <div class="jumbotron">
+        <h1>日报发布</h1>
+        <form class="form-signin" action="/signUp" method="post">
+            <label for="inputName" class="sr-only">昵称</label>
+            <input type="name" name="inputName" id="inputName" class="form-control" placeholder="昵称" required autofocus>
+            <label for="inputUserName" class="sr-only">用户名</label>
+            <input name="inputUserName" id="inputUserName" class="form-control" placeholder="用户名" required autofocus>
+            <label for="inputPassword" class="sr-only">密码</label>
+            <input type="password" name="inputPassword" id="inputPassword" class="form-control" placeholder="密码" required>
+
+            <button id="btnSignUp" class="btn btn-lg btn-primary btn-block" type="submit">注册</button>
+          </form>
+      </div>
+
+      <footer class="footer">
+        <p>yagnshuai@kunyan-inc.com</p>
+      </footer>
+
+    </div>
+  </body>
+<!--<script>
+    $(function() {
+        $('#btnSignUp').click(function() {
+
+            $.ajax({
+                url: '/signUp',
+                data: $('form').serialize(),
+                type: 'POST',
+                success: function(response) {
+                    console.log(response);
+                },
+                error: function(error) {
+                    console.log(error);
+                }
+            });
+        });
+    });
+</script>-->
+</html>
