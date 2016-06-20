@@ -16,7 +16,7 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.secret_key = 'why would I tell you my secret key?'
 
-engine = create_engine('mysql://root:123456@localhost/dailytask')
+engine = create_engine('mysql://root:123456@123.57.58.91/dailytask')
 metadata = MetaData(engine)
 Session = sessionmaker(bind=engine)
 sql_session = Session()
@@ -49,6 +49,8 @@ def validate_login():
         if user and check_password_hash(user.password, _password):
             session['user'] = user.username
             return redirect('/userHome')
+        else:
+            return render_template('error.html', error="用户名或密码错误")
 
     except Exception as e:
         print(e)
@@ -120,7 +122,7 @@ def save_report():
     sql_session.add(report)
     sql_session.commit()
 
-    return render_template('user_home.html', report=report)
+    return redirect('/userHome')
 
 
 @app.route('/logout')
