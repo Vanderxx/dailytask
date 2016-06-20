@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from werkzeug.security import generate_password_hash, check_password_hash
 import time
 import sys
+import calendar
 
 
 reload(sys)
@@ -16,7 +17,7 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.secret_key = 'why would I tell you my secret key?'
 
-engine = create_engine('mysql://root:123456@localhost/dailytask',connect_args={'charset':'utf8'},echo=False)
+engine = create_engine('mysql://root:123456@123.57.58.91/dailytask',connect_args={'charset':'utf8'},echo=False)
 metadata = MetaData(engine)
 Session = sessionmaker(bind=engine)
 sql_session = Session()
@@ -96,11 +97,30 @@ def sign_up():
 def user_home():
 
     report = get_last_report()
+    user = sql_session.query(User).filter_by(username=session['user']).first()
 
-    if session.get('user'):
-        return render_template('user_home.html', name=session.get('name'), report=report)
+    if user:
+        return render_template('user_home.html', name=user.name, type=user.type, report=report)
     else:
         return render_template('error.html', error='Unauthorized Access')
+
+
+@app.route('/reportList')
+def report_list():
+    today = datetime.today()
+    today = datetime(today.year, today.month, today.day)
+    timestamp = int((today - datetime(1970, 1, 1)).total_seconds())
+
+    global sql_session
+    reports = sql_session.query(Report).filter(Report.updated_time > timestamp)
+
+    result_list = []
+
+    for report in reports:
+        user = sql_session.query(User).filter_by(id=report.user_id).first()
+        result_list.append((report, user))
+
+    return render_template('report_list.html', list=result_list)
 
 
 @app.route('/createReport')

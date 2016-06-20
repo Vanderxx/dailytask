@@ -31,29 +31,22 @@
         </div>
 
         <div class="jumbotron" style="padding-bottom:12px">
-            {% if type == 2 %}
-                <a class="btn btn-lg btn-info" href="/reportList" role="button">报告列表</a>
-            {% endif %}
-            {% if report != None %}
-                <table class="table">
-                    <tr>
-                        <td>系统名称</td>
-                        <td>{{ report.system_name }}</td>
-                    </tr>
-                    <tr>
-                        <td>运行情况</td>
-                        <td>{{ report.status }}</td>
-                    </tr>
-                    <tr>
-                        <td>bug情况</td>
-                        <td>{{ report.bugs }}</td>
-                    </tr>
-
-                </table>
-                <a class="btn btn-primary btn-xs" href="/createReport" role="button">修改报告</a>
-            {% else %}
-                <a class="btn btn-lg btn-success" href="/createReport" role="button">添加报告</a>
-            {% endif %}
+            <table class="table">
+                <tr>
+                    <th>系统名称</th>
+                    <th>负责人</th>
+                    <th>运行情况</th>
+                    <th>bug情况</th>
+                </tr>
+                {% for tuple in list %}
+                <tr>
+                    <td>{{ tuple[0].system_name }}</td>
+                    <td>{{ tuple[1].name }}</td>
+                    <td>{{ tuple[0].status }}</td>
+                    <td>{{ tuple[0].bugs }}</td>
+                </tr>
+                {% endfor %}
+            </table>
         </div>
 
         <footer class="footer">
