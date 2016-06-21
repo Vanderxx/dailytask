@@ -15,7 +15,7 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.secret_key = 'why would I tell you my secret key?'
 
-engine = create_engine('mysql://root:123456@123.57.58.91/dailytask', connect_args={'charset': 'utf8'}, echo=False)
+engine = create_engine('mysql://root:123456@123.57.58.91/dailytask',connect_args={'charset':'utf8'},echo=False)
 metadata = MetaData(engine)
 Session = sessionmaker(bind=engine)
 sql_session = Session()
@@ -59,8 +59,9 @@ def validate_login():
 
         global sql_session
         user = sql_session.query(User).filter_by(username=_username).first()
-
+        print("enter")
         if user and check_password_hash(user.password, _password):
+            print("enter if")
             session['user'] = user.username
             session['name'] = user.name
             return redirect('/userHome')
@@ -220,6 +221,7 @@ def logout():
 
 def get_last_report():
     """get latest report"""
+    print(session.get('user'))
     global sql_session
     try:
         user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
