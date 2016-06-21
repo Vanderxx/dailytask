@@ -1,14 +1,13 @@
 # coding=utf-8
+import sys
 from datetime import datetime
 
-from flask import Flask, render_template, json, request, redirect, session
+from flask import Flask, render_template, request, redirect, session
+from flask.ext import excel
 from models import User, Report, Task
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker
 from werkzeug.security import generate_password_hash, check_password_hash
-import time
-import sys
-from flask.ext import excel
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -138,14 +137,24 @@ def show_report_form():
 @app.route('/saveReport', methods=['POST'])
 def save_report():
     global sql_session
+
     try:
-        user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
+        report = get_last_report()
         name = request.form['inputName']
         status = request.form['inputStatus']
         bugs = request.form['inputBugs']
         updated_time = datetime.now()
-        report = Report(user_id=user_id, system_name=name, status=status, bugs=bugs, updated_time=updated_time)
-        sql_session.add(report)
+
+        if report is not None:
+            report.system_name = name
+            report.status = status
+            report.bugs = bugs
+            report.updated_time = updated_time
+        else:
+            user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
+            report = Report(user_id=user_id, system_name=name, status=status, bugs=bugs, updated_time=updated_time)
+            sql_session.add(report)
+
         sql_session.commit()
     except Exception as e:
         print(e)
@@ -174,15 +183,26 @@ def show_task_form():
 @app.route('/saveTask', methods=['POST'])
 def save_task():
     global sql_session
+
     try:
-        user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
+        task = get_last_task()
+
         completed = request.form['completed']
         uncompleted = request.form['uncompleted']
         coordination = request.form['coordination']
         updated_time = datetime.now()
-        task = Task(user_id=user_id, completed=completed, uncompleted=uncompleted, coordination=coordination,
-                    updated_time=updated_time)
-        sql_session.add(task)
+
+        if task is not None:
+            task.completed = completed
+            task.uncompleted = uncompleted
+            task.coordination = coordination
+            task.updated_time = updated_time
+        else:
+            user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
+            task = Task(user_id=user_id, completed=completed, uncompleted=uncompleted, coordination=coordination,
+                        updated_time=updated_time)
+            sql_session.add(task)
+
         sql_session.commit()
     except Exception as e:
         print(e)
