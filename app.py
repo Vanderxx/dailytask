@@ -60,10 +60,15 @@ def validate_login():
 
         global sql_session
         user = sql_session.query(User).filter_by(username=_username).first()
-
+        print("enter")
         if user and check_password_hash(user.password, _password):
+            print("enter if")
             session['user'] = user.username
+<<<<<<< Updated upstream
             session['name'] = user.name
+=======
+            print(session['user'])
+>>>>>>> Stashed changes
             return redirect('/userHome')
         else:
             return render_template('error.html', error="用户名或密码错误")
@@ -143,6 +148,10 @@ def save_report():
     status = request.form['inputStatus']
     bugs = request.form['inputBugs']
     updated_time = int(time.time())
+<<<<<<< Updated upstream
+=======
+    print(status)
+>>>>>>> Stashed changes
     report = Report(user_id=user_id, system_name=name, status=status, bugs=bugs, updated_time=updated_time)
     sql_session.add(report)
     sql_session.commit()
@@ -159,6 +168,7 @@ def logout():
 
 def get_last_report():
     """get latest report"""
+    print(session.get('user'))
     global sql_session
     try:
         user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
