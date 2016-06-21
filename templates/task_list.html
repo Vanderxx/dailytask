@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="jumbotron" style="padding-bottom:12px">
+    <table class="table">
+        <tr>
+            <th>姓名</th>
+            <th>今日完成</th>
+            <th>暂未完成</th>
+            <th>需要协调</th>
+        </tr>
+        {% for tuple in list %}
+        <tr>
+            <td>{{ tuple[1].name }}</td>
+            <td>{{ tuple[0].completed }}</td>
+            <td>{{ tuple[0].uncompleted }}</td>
+            <td>{{ tuple[0].coordination }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}
