@@ -1,90 +1,49 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
+{% block body %}
+<section>
+    <form class="form-horizontal" method="post" action="/saveReport">
+        <fieldset>
 
-<head>
-    <title>Python Flask Bucket List App</title>
+            <!-- Form Name -->
+            <legend>创建系统报告</legend>
 
+            <!-- Text input-->
+            <div class="form-group">
+                <label class="col-md-2 control-label" for="systemName">系统名称</label>
+                <div class="col-md-4">
+                    <input id="systemName" name="inputName" type="text" class="form-control input-md"
+                   {% if  report != None %}
+                       value="{{ report.system_name }}"
+                   {% endif %}
+                    >
+                </div>
+            </div>
 
-    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+            <!-- Textarea -->
+            <div class="form-group">
+                <label class="col-md-2 control-label" for="systemStatus">运行情况</label>
+                <div class="col-md-6">
+                    <textarea class="form-control" style="height:100px" id="systemStatus" name="inputStatus">{% if  report != None %}{{ report.status }}{% endif %}</textarea>
+                </div>
+            </div>
 
-    <link href="http://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
+            <!-- Textarea -->
+            <div class="form-group">
+                <label class="col-md-2 control-label" for="systemBugs">bug情况</label>
+                <div class="col-md-6">
+                    <textarea class="form-control" style="height:100px" id="systemBugs" name="inputBugs">{% if  report != None %}{{ report.bugs }}{% endif %}</textarea>
+                </div>
+            </div>
 
-    <script src="../static/js/jquery-3.0.0.min.js"></script>
+            <!-- Button -->
+            <div class="form-group">
+                <label class="col-md-4 control-label" for="singlebutton"></label>
+                <div class="col-md-4">
+                    <input id="singlebutton" name="singlebutton" class="btn btn-primary" type="submit" value="保存"/>
+                </div>
+            </div>
 
-
-</head>
-
-<body>
-
-    <div class="container">
-        <div class="header">
-            <nav>
-                <ul class="nav nav-pills pull-right">
-                    <li role="presentation">
-                        <a>{{name}}</a>
-                    </li>
-                    <li role="presentation" class="active">
-                        <a href="/logout">Logout</a>
-                    </li>
-                </ul>
-            </nav>
-            <h3 class="text-muted">Python Flask App</h3>
-        </div>
-
-        <section>
-
-            <form class="form-horizontal" method="post" action="/saveReport">
-                <fieldset>
-
-                    <!-- Form Name -->
-                    <legend>创建系统报告</legend>
-
-                    <!-- Text input-->
-                    <div class="form-group">
-                        <label class="col-md-2 control-label" for="systemName">系统名称</label>
-                        <div class="col-md-4">
-                            <input id="systemName" name="inputName" type="text" class="form-control input-md"
-                           {% if  report != None %}
-                               value="{{ report.system_name }}"
-                           {% endif %}
-                            >
-                        </div>
-                    </div>
-
-                    <!-- Textarea -->
-                    <div class="form-group">
-                        <label class="col-md-2 control-label" for="systemStatus">运行情况</label>
-                        <div class="col-md-6">
-                            <textarea class="form-control" style="height:100px" id="systemStatus" name="inputStatus">{% if  report != None %}{{ report.status }}{% endif %}</textarea>
-                        </div>
-                    </div>
-
-                    <!-- Textarea -->
-                    <div class="form-group">
-                        <label class="col-md-2 control-label" for="systemBugs">bug情况</label>
-                        <div class="col-md-6">
-                            <textarea class="form-control" style="height:100px" id="systemBugs" name="inputBugs">{% if  report != None %}{{ report.bugs }}{% endif %}</textarea>
-                        </div>
-                    </div>
-
-                    <!-- Button -->
-                    <div class="form-group">
-                        <label class="col-md-4 control-label" for="singlebutton"></label>
-                        <div class="col-md-4">
-                            <input id="singlebutton" name="singlebutton" class="btn btn-primary" type="submit" value="保存"/>
-                        </div>
-                    </div>
-
-                </fieldset>
-            </form>
-
-        </section>
-
-        <footer class="footer">
-            <p>&copy; Company 2015</p>
-        </footer>
-
-    </div>
-</body>
-
-</html>
+        </fieldset>
+    </form>
+</section>
+{% endblock %}

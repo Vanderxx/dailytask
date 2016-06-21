@@ -10,14 +10,13 @@ import time
 import sys
 from flask.ext import excel
 
-
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
 app = Flask(__name__)
 app.secret_key = 'why would I tell you my secret key?'
 
-engine = create_engine('mysql://root:123456@123.57.58.91/dailytask',connect_args={'charset':'utf8'},echo=False)
+engine = create_engine('mysql://root:123456@123.57.58.91/dailytask', connect_args={'charset': 'utf8'}, echo=False)
 metadata = MetaData(engine)
 Session = sessionmaker(bind=engine)
 sql_session = Session()
@@ -25,8 +24,7 @@ sql_session = Session()
 
 @app.route("/export", methods=['GET'])
 def export_records():
-
-    data = [["系统名称","负责人","系统状态","bug情况"]]
+    data = [["系统名称", "负责人", "系统状态", "bug情况"]]
 
     for report in get_today_reports():
         user = sql_session.query(User).filter_by(id=report.user_id).first()
@@ -38,7 +36,10 @@ def export_records():
 
 @app.route("/")
 def main():
-    return render_template('index.html')
+    if session.get('user'):
+        return redirect('/userHome')
+    else:
+        return render_template('index.html')
 
 
 @app.route('/showSignIn')
@@ -59,7 +60,7 @@ def validate_login():
 
         global sql_session
         user = sql_session.query(User).filter_by(username=_username).first()
-        
+
         if user and check_password_hash(user.password, _password):
             session['user'] = user.username
             session['name'] = user.name
@@ -74,7 +75,6 @@ def validate_login():
 
 @app.route('/signUp', methods=['POST'])
 def sign_up():
-
     # read the posted values from the UI
     _name = request.form['inputName']
     _user_name = request.form['inputUserName']
@@ -108,19 +108,17 @@ def sign_up():
 
 @app.route('/userHome')
 def user_home():
-
     report = get_last_report()
     user = sql_session.query(User).filter_by(username=session['user']).first()
 
     if user:
-        return render_template('user_home.html', name=user.name, type=user.type, report=report)
+        return render_template('user_home.html', type=user.type, report=report)
     else:
         return render_template('error.html', error='Unauthorized Access')
 
 
 @app.route('/reportList')
 def report_list():
-
     reports = get_today_reports()
     result_list = []
 
@@ -138,7 +136,6 @@ def show_add_report():
 
 @app.route('/saveReport', methods=['POST'])
 def save_report():
-
     global sql_session
 
     user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
@@ -163,17 +160,22 @@ def logout():
 def get_last_report():
     """get latest report"""
     global sql_session
-    user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
-    reports = sql_session.query(Report).filter_by(user_id=user_id).order_by(Report.updated_time)
+    try:
+        user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
+        reports = sql_session.query(Report).filter_by(user_id=user_id).order_by(Report.updated_time)
+        report = None
 
-    report = None
+        if reports.first() is not None:
+            report = reports[-1]
 
-    if reports.first() is not None:
-        report = reports[-1]
+        if report is not None and if_today(report.updated_time):
+            return report
+        else:
+            return None
 
-    if report is not None and if_today(report.updated_time):
-        return report
-    else:
+    except Exception as e:
+        sql_session.rollback()
+        print(e)
         return None
 
 

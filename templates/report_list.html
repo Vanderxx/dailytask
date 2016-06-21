@@ -1,59 +1,21 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <title>Python Flask Bucket List App</title>
-
-
-    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <link href="http://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
-    <link href="../static/css/signup.css" rel="stylesheet">
-
-
-</head>
-
-<body>
-
-    <div class="container">
-        <div class="header">
-            <nav>
-                <ul class="nav nav-pills pull-right">
-                    <li role="presentation">
-                        <a>{{name}}</a>
-                    </li>
-                    <li role="presentation" class="active">
-                        <a href="/logout">注销</a>
-                    </li>
-                </ul>
-            </nav>
-            <h3 class="text-muted">反馈bug发页面左下角邮箱</h3>
-        </div>
-
-        <div class="jumbotron" style="padding-bottom:12px">
-            <table class="table">
-                <tr>
-                    <th>系统名称</th>
-                    <th>负责人</th>
-                    <th>运行情况</th>
-                    <th>bug情况</th>
-                </tr>
-                {% for tuple in list %}
-                <tr>
-                    <td>{{ tuple[0].system_name }}</td>
-                    <td>{{ tuple[1].name }}</td>
-                    <td>{{ tuple[0].status }}</td>
-                    <td>{{ tuple[0].bugs }}</td>
-                </tr>
-                {% endfor %}
-            </table>
-        </div>
-
-        <footer class="footer">
-            <p>yagnshuai@kunyan-inc.com</p>
-        </footer>
-
-    </div>
-</body>
-
-</html>
+{% extends "base.html" %}
+{% block body %}
+<div class="jumbotron" style="padding-bottom:12px">
+    <table class="table">
+        <tr>
+            <th>系统名称</th>
+            <th>负责人</th>
+            <th>运行情况</th>
+            <th>bug情况</th>
+        </tr>
+        {% for tuple in list %}
+        <tr>
+            <td>{{ tuple[0].system_name }}</td>
+            <td>{{ tuple[1].name }}</td>
+            <td>{{ tuple[0].status }}</td>
+            <td>{{ tuple[0].bugs }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

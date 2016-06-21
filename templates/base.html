@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>日报</title>
+    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="http://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
+    <link href="../static/css/signup.css" rel="stylesheet">
+    <script src="../static/js/jquery-3.0.0.min.js"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <nav>
+                <ul class="nav nav-pills pull-right">
+                    {% block login %}
+                        {% if session.name %}
+                            <li role="presentation">
+                                <a>hello, {{session.name}}</a>
+                            </li>
+                            <li role="presentation" class="active">
+                                <a href="/logout">注销</a>
+                            </li>
+                        {% else %}
+                            <li role="presentation">
+                                <a href="/showSignIn">登录</a>
+                            </li>
+                            <li role="presentation">
+                                <a href="/showSignUp">注册</a>
+                            </li>
+                        {% endif %}
+                    {% endblock %}
+                </ul>
+            </nav>
+            <h3 class="text-muted">反馈bug发页面左下角邮箱</h3>
+        </div>
+
+        {% block body %}
+        {% endblock %}
+
+        <footer class="footer">
+            <p>yagnshuai@kunyan-inc.com</p>
+        </footer>
+
+    </div>
+</body>
+
+</html>
