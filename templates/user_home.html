@@ -3,6 +3,7 @@
 <div class="jumbotron" style="padding-bottom:12px">
     {% if type == 2 %}
         <a class="btn btn-lg btn-info" href="/reportList" role="button">报告列表</a>
+        <a class="btn btn-lg btn-info" href="/dailyTaskList" role="button">日报列表</a>
     {% endif %}
     {% if report != None %}
         <table class="table">
@@ -23,6 +24,26 @@
         <a class="btn btn-primary btn-xs" href="/createReport" role="button">修改报告</a>
     {% else %}
         <a class="btn btn-lg btn-success" href="/createReport" role="button">添加报告</a>
+    {% endif %}
+    {% if task != None %}
+        <table class="table">
+            <tr>
+                <td>今日完成</td>
+                <td>{{ task.completed }}</td>
+            </tr>
+            <tr>
+                <td>暂未完成</td>
+                <td>{{ task.uncompleted }}</td>
+            </tr>
+            <tr>
+                <td>需要协调</td>
+                <td>{{ task.coordination }}</td>
+            </tr>
+
+        </table>
+        <a class="btn btn-primary btn-xs" href="/createDailyTask" role="button">修改日报</a>
+    {% else %}
+        <a class="btn btn-lg btn-success" href="/createDailyTask" role="button">添加日报</a>
     {% endif %}
 </div>
 {% endblock %}

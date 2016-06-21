@@ -2,7 +2,7 @@
 from datetime import datetime
 
 from flask import Flask, render_template, json, request, redirect, session
-from models import User, Report
+from models import User, Report, Task
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -109,10 +109,11 @@ def sign_up():
 @app.route('/userHome')
 def user_home():
     report = get_last_report()
+    task = get_last_task()
     user = sql_session.query(User).filter_by(username=session['user']).first()
 
     if user:
-        return render_template('user_home.html', type=user.type, report=report)
+        return render_template('user_home.html', type=user.type, report=report, task=task)
     else:
         return render_template('error.html', error='Unauthorized Access')
 
@@ -130,22 +131,62 @@ def report_list():
 
 
 @app.route('/createReport')
-def show_add_report():
+def show_report_form():
     return render_template('report_form.html', name=session.get('name'), report=get_last_report())
 
 
 @app.route('/saveReport', methods=['POST'])
 def save_report():
     global sql_session
+    try:
+        user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
+        name = request.form['inputName']
+        status = request.form['inputStatus']
+        bugs = request.form['inputBugs']
+        updated_time = datetime.now()
+        report = Report(user_id=user_id, system_name=name, status=status, bugs=bugs, updated_time=updated_time)
+        sql_session.add(report)
+        sql_session.commit()
+    except Exception as e:
+        print(e)
+        sql_session.rollback()
 
-    user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
-    name = request.form['inputName']
-    status = request.form['inputStatus']
-    bugs = request.form['inputBugs']
-    updated_time = int(time.time())
-    report = Report(user_id=user_id, system_name=name, status=status, bugs=bugs, updated_time=updated_time)
-    sql_session.add(report)
-    sql_session.commit()
+    return redirect('/userHome')
+
+
+@app.route('/dailyTaskList')
+def task_list():
+    tasks = get_today_tasks()
+    result_list = []
+
+    for task in tasks:
+        user = sql_session.query(User).filter_by(id=task.user_id).first()
+        result_list.append((task, user))
+
+    return render_template('task_list.html', list=result_list)
+
+
+@app.route('/createDailyTask')
+def show_task_form():
+    return render_template('task_form.html', name=session.get('name'), task=get_last_task())
+
+
+@app.route('/saveTask', methods=['POST'])
+def save_task():
+    global sql_session
+    try:
+        user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
+        completed = request.form['completed']
+        uncompleted = request.form['uncompleted']
+        coordination = request.form['coordination']
+        updated_time = datetime.now()
+        task = Task(user_id=user_id, completed=completed, uncompleted=uncompleted, coordination=coordination,
+                    updated_time=updated_time)
+        sql_session.add(task)
+        sql_session.commit()
+    except Exception as e:
+        print(e)
+        sql_session.rollback()
 
     return redirect('/userHome')
 
@@ -179,14 +220,46 @@ def get_last_report():
         return None
 
 
+def get_last_task():
+    """get latest daily task"""
+    global sql_session
+    try:
+        user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
+        tasks = sql_session.query(Task).filter_by(user_id=user_id).order_by(Task.updated_time)
+        task = None
+
+        if tasks.first() is not None:
+            task = tasks[-1]
+
+        if task is not None and if_today(task.updated_time):
+            return task
+        else:
+            return None
+
+    except Exception as e:
+        sql_session.rollback()
+        print(e)
+        return None
+
+
 def get_today_reports():
+    """get reports created today"""
     today = datetime.today()
     today = datetime(today.year, today.month, today.day)
-    timestamp = int((today - datetime(1970, 1, 1)).total_seconds())
 
     global sql_session
-    reports = sql_session.query(Report).filter(Report.updated_time > timestamp)
+    reports = sql_session.query(Report).filter(Report.updated_time > today)
     return reports
+
+
+def get_today_tasks():
+    """get tasks created today"""
+    today = datetime.today()
+    today = datetime(today.year, today.month, today.day)
+
+    global sql_session
+    tasks = sql_session.query(Task).filter(Task.updated_time > today)
+    return tasks
 
 
 def if_today(updated_time):
@@ -196,9 +269,8 @@ def if_today(updated_time):
     """
     today = datetime.today()
     today = datetime(today.year, today.month, today.day)
-    last_update = datetime.fromtimestamp(updated_time)
 
-    return last_update > today
+    return updated_time > today
 
 
 if __name__ == "__main__":

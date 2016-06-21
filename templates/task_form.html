@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block body %}
+<section>
+    <form class="form-horizontal" method="post" action="/saveTask">
+        <fieldset>
+
+            <!-- Form Name -->
+            <legend>创建日报</legend>
+
+            <!-- Text input-->
+            <div class="form-group">
+                <label class="col-md-2 control-label" for="completed">今日完成</label>
+                <div class="col-md-6">
+                    <textarea class="form-control" style="height:100px" id="completed" name="completed">{% if  task != None %}{{ task.completed }}{% endif %}</textarea>
+                </div>
+            </div>
+
+            <!-- Textarea -->
+            <div class="form-group">
+                <label class="col-md-2 control-label" for="uncompleted">暂未完成</label>
+                <div class="col-md-6">
+                    <textarea class="form-control" style="height:100px" id="uncompleted" name="uncompleted">{% if  task != None %}{{ task.uncompleted }}{% endif %}</textarea>
+                </div>
+            </div>
+
+            <!-- Textarea -->
+            <div class="form-group">
+                <label class="col-md-2 control-label" for="coordination">需要协调</label>
+                <div class="col-md-6">
+                    <textarea class="form-control" style="height:100px" id="coordination" name="coordination">{% if  task != None %}{{ task.coordination }}{% endif %}</textarea>
+                </div>
+            </div>
+
+            <!-- Button -->
+            <div class="form-group">
+                <label class="col-md-4 control-label" for="singlebutton"></label>
+                <div class="col-md-4">
+                    <input id="singlebutton" name="singlebutton" class="btn btn-primary" type="submit" value="保存"/>
+                </div>
+            </div>
+
+        </fieldset>
+    </form>
+</section>
+{% endblock %}
