@@ -1,12 +1,15 @@
 # coding=utf-8
 import sys
+from StringIO import StringIO
+from collections import OrderedDict
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, session
-from flask.ext import excel
+from flask import Flask, render_template, request, redirect, session, Response
 from models import User, Report, Task
+from pyexcel_xlsx import save_data
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker
+from werkzeug.datastructures import Headers
 from werkzeug.security import generate_password_hash, check_password_hash
 
 reload(sys)
@@ -15,22 +18,61 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.secret_key = 'why would I tell you my secret key?'
 
-engine = create_engine('mysql://root:123456@123.57.58.91/dailytask',connect_args={'charset':'utf8'},echo=False)
+engine = create_engine('mysql://root:123456@123.57.58.91/dailytask', connect_args={'charset': 'utf8'}, echo=False)
 metadata = MetaData(engine)
 Session = sessionmaker(bind=engine)
 sql_session = Session()
 
 
-@app.route("/export", methods=['GET'])
-def export_records():
+def export(excel_dict, file_name):
+    data = OrderedDict()
+    data.update(excel_dict)
+    io = StringIO()
+    save_data(io, data)
+    response = Response()
+    response.status_code = 200
+    response.data = io.getvalue()
+
+    response_headers = Headers({
+            'Pragma': "public",  # required,
+            'Expires': '0',
+            'Cache-Control': 'must-revalidate, post-check=0, pre-check=0',
+            'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            'Content-Disposition': 'attachment; filename=\"%s\";' % file_name,
+            'Content-Transfer-Encoding': 'binary',
+            'Content-Length': len(response.data)
+        })
+
+    response.headers = response_headers
+    return response
+
+
+@app.route("/exportReport", methods=['GET'])
+def export_reports():
+    if session.get('user_type') != 2:
+        return
+
     data = [["系统名称", "负责人", "系统状态", "bug情况"]]
 
     for report in get_today_reports():
         user = sql_session.query(User).filter_by(id=report.user_id).first()
         data.append([report.system_name, user.name, report.status, report.bugs])
 
-    return excel.make_response_from_array(data, "csv",
-                                          file_name="系统运行报告")
+    return export({u'系统运行报告': data}, "系统运行报告.xlsx")
+
+
+@app.route("/exportTask", methods=['GET'])
+def export_tasks():
+    if session.get('user_type') != 2:
+        return
+
+    data = [["姓名", "已完成", "待完成", "需协调"]]
+
+    for task in get_today_tasks():
+        user = sql_session.query(User).filter_by(id=task.user_id).first()
+        data.append([user.name, task.completed, task.uncompleted, task.coordination])
+
+    return export({u'日报': data}, "日报.xlsx")
 
 
 @app.route("/")
@@ -59,11 +101,10 @@ def validate_login():
 
         global sql_session
         user = sql_session.query(User).filter_by(username=_username).first()
-        print("enter")
         if user and check_password_hash(user.password, _password):
-            print("enter if")
             session['user'] = user.username
             session['name'] = user.name
+            session['user_type'] = user.type
             return redirect('/userHome')
         else:
             return render_template('error.html', error="用户名或密码错误")
@@ -75,12 +116,10 @@ def validate_login():
 
 @app.route('/signUp', methods=['POST'])
 def sign_up():
-    # read the posted values from the UI
     _name = request.form['inputName']
     _user_name = request.form['inputUserName']
     _password = request.form['inputPassword']
 
-    # validate the received values
     if _name and _user_name and _password:
 
         _hashed_password = generate_password_hash(_password)
