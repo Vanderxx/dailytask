@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from werkzeug.security import generate_password_hash, check_password_hash
 import time
 import sys
-import calendar
+from flask.ext import excel
 
 
 reload(sys)
@@ -21,6 +21,19 @@ engine = create_engine('mysql://root:123456@123.57.58.91/dailytask',connect_args
 metadata = MetaData(engine)
 Session = sessionmaker(bind=engine)
 sql_session = Session()
+
+
+@app.route("/export", methods=['GET'])
+def export_records():
+
+    data = [["系统名称","负责人","系统状态","bug情况"]]
+
+    for report in get_today_reports():
+        user = sql_session.query(User).filter_by(id=report.user_id).first()
+        data.append([report.system_name, user.name, report.status, report.bugs])
+
+    return excel.make_response_from_array(data, "csv",
+                                          file_name="系统运行报告")
 
 
 @app.route("/")
@@ -107,13 +120,8 @@ def user_home():
 
 @app.route('/reportList')
 def report_list():
-    today = datetime.today()
-    today = datetime(today.year, today.month, today.day)
-    timestamp = int((today - datetime(1970, 1, 1)).total_seconds())
 
-    global sql_session
-    reports = sql_session.query(Report).filter(Report.updated_time > timestamp)
-
+    reports = get_today_reports()
     result_list = []
 
     for report in reports:
@@ -156,17 +164,27 @@ def get_last_report():
     """get latest report"""
     global sql_session
     user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
-    report_list = sql_session.query(Report).filter_by(user_id=user_id).order_by(Report.updated_time)
+    reports = sql_session.query(Report).filter_by(user_id=user_id).order_by(Report.updated_time)
 
     report = None
 
-    if report_list.first() is not None:
-        report = report_list[-1]
+    if reports.first() is not None:
+        report = reports[-1]
 
     if report is not None and if_today(report.updated_time):
         return report
     else:
         return None
+
+
+def get_today_reports():
+    today = datetime.today()
+    today = datetime(today.year, today.month, today.day)
+    timestamp = int((today - datetime(1970, 1, 1)).total_seconds())
+
+    global sql_session
+    reports = sql_session.query(Report).filter(Report.updated_time > timestamp)
+    return reports
 
 
 def if_today(updated_time):
