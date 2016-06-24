@@ -15,7 +15,7 @@ class User(Base):
 
     def __repr__(self):
         return "<User(name='%s', username='%s', password='%s', type='%d')>" % (
-                         self.name, self.fullname, self.password, self.type)
+                         self.name, self.username, self.password, self.type)
 
 
 class Report(Base):
