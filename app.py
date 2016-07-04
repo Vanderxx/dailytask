@@ -319,7 +319,13 @@ def get_today_tasks():
     today = datetime(today.year, today.month, today.day)
 
     global sql_session
-    tasks = sql_session.query(Task).filter(Task.updated_time > today)
+    
+    try:
+        tasks = sql_session.query(Task).filter(Task.updated_time > today)
+    except Exception as e:
+        sql_session.rollbaCK()
+        print(e)
+
     return tasks
 
 
