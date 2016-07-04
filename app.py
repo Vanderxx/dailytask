@@ -66,7 +66,7 @@ def export_tasks():
     if session.get('user_type') != 2:
         return
 
-    data = [["姓名", "已完成", "待完成", "需协调"]]
+    data = [["姓名", "今日工作", "待完成", "需协调"]]
 
     for task in get_today_tasks():
         user = sql_session.query(User).filter_by(id=task.user_id).first()
