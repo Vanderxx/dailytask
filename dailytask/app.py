@@ -18,7 +18,7 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.secret_key = 'why would I tell you my secret key?'
 
-engine = create_engine('mysql://root:123456@localhost/dailytask',connect_args={'charset':'utf8'},echo=False)
+engine = create_engine('mysql://root:123456@localhost/dailytask', connect_args={'charset': 'utf8'}, echo=False)
 metadata = MetaData(engine)
 Session = sessionmaker(bind=engine)
 sql_session = Session()
@@ -47,14 +47,14 @@ def export(excel_dict, file_name):
     return response
 
 
-@app.route("/exportReport", methods=['GET'])
-def export_reports():
+@app.route("/exportReport/<day>", methods=['GET'])
+def export_reports(day):
     if session.get('user_type') != 2:
         return
 
     data = [["系统名称", "负责人", "系统状态", "bug情况"]]
 
-    for report in get_today_reports():
+    for report in get_reports_by_day(day):
         user = sql_session.query(User).filter_by(id=report.user_id).first()
         data.append([report.system_name, user.name, report.status, report.bugs])
 
@@ -101,7 +101,7 @@ def validate_login():
 
         global sql_session
         user = sql_session.query(User).filter_by(username=_username).first()
-        
+
         if user and check_password_hash(user.password, _password):
             session['user'] = user.username
             session['name'] = user.name
@@ -160,7 +160,7 @@ def user_home():
 
 @app.route('/reportList')
 def report_list():
-    reports = get_today_reports()
+    reports = get_reports_by_day(0)
     result_list = []
 
     for report in reports:
@@ -303,6 +303,15 @@ def get_last_task():
         return None
 
 
+def get_reports_by_day(offset):
+    today = datetime.today()
+    day = datetime(today.year, today.month, today.day - offset)
+
+    global sql_session
+    reports = sql_session.query(Report).filter(Report.updated_time > day)
+    return reports
+
+
 def get_today_reports():
     """get reports created today"""
     today = datetime.today()
@@ -319,7 +328,7 @@ def get_today_tasks():
     today = datetime(today.year, today.month, today.day)
 
     global sql_session
-    
+
     try:
         tasks = sql_session.query(Task).filter(Task.updated_time > today)
     except Exception as e:
