@@ -1,81 +1,87 @@
-# coding=utf-8
-import sys
-from StringIO import StringIO
-from collections import OrderedDict
+# -*- coding: utf-8 -*-
+
+from flask import Flask, render_template, request, g, redirect, session, flash, Response
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
+from models import User, Report, Task
+
+from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.datastructures import Headers
+
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, session, Response
-from models import User, Report, Task
+from collections import OrderedDict
+
+from StringIO import StringIO
 from pyexcel_xlsx import save_data
-from sqlalchemy import create_engine, MetaData
-from sqlalchemy.orm import sessionmaker
-from werkzeug.datastructures import Headers
-from werkzeug.security import generate_password_hash, check_password_hash
 
-reload(sys)
-sys.setdefaultencoding('utf-8')
+import config
 
-app = Flask(__name__)
-app.secret_key = 'why would I tell you my secret key?'
 
-engine = create_engine('mysql://root:123456@localhost/dailytask',connect_args={'charset':'utf8'},echo=False)
-metadata = MetaData(engine)
+app = Flask(__name__, static_folder='static')
+app.secret_key = config.secret_key
+
+server_log = TimedRotatingFileHandler('server.log', 'D')
+server_log.setLevel(logging.DEBUG)
+server_log.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+
+error_log = TimedRotatingFileHandler('error.log', 'D')
+error_log.setLevel(logging.ERROR)
+error_log.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+
+app.logger.addHandler(server_log)
+app.logger.addHandler(error_log)
+
+engine = create_engine(config.sql_conn,
+                       connect_args=config.sql_config['conn_args'],
+                       echo=False)
 Session = sessionmaker(bind=engine)
-sql_session = Session()
 
 
-def export(excel_dict, file_name):
-    data = OrderedDict()
-    data.update(excel_dict)
-    io = StringIO()
-    save_data(io, data)
-    response = Response()
-    response.status_code = 200
-    response.data = io.getvalue()
-
-    response_headers = Headers({
-            'Pragma': "public",  # required,
-            'Expires': '0',
-            'Cache-Control': 'must-revalidate, post-check=0, pre-check=0',
-            'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            'Content-Disposition': 'attachment; filename=\"%s\";' % file_name,
-            'Content-Transfer-Encoding': 'binary',
-            'Content-Length': len(response.data)
-        })
-
-    response.headers = response_headers
-    return response
+#########################################
+# class InvalidUsage(Exception):
+#     status_code = 400
+#
+#     def __init__(self, message, status_code=status_code):
+#         Exception.__init__(self)
+#         self.message = message
+#         self.status_code = status_code
+#
+#
+# @app.errorhandler(InvalidUsage)
+# def invalid_usage(error):
+#     response = make_response(error.message)
+#     response.status_code = error.status_code
+#     return response
 
 
-@app.route("/exportReport", methods=['GET'])
-def export_reports():
-    if session.get('user_type') != 2:
-        return
-
-    data = [["系统名称", "负责人", "系统状态", "bug情况"]]
-
-    for report in get_today_reports():
-        user = sql_session.query(User).filter_by(id=report.user_id).first()
-        data.append([report.system_name, user.name, report.status, report.bugs])
-
-    return export({u'系统运行报告': data}, "系统运行报告.xlsx")
+@app.errorhandler(404)
+def page_not_find(error):
+    return render_template('error.html', error='page not find')
 
 
-@app.route("/exportTask", methods=['GET'])
-def export_tasks():
-    if session.get('user_type') != 2:
-        return
-
-    data = [["姓名", "今日工作", "待完成", "需协调"]]
-
-    for task in get_today_tasks():
-        user = sql_session.query(User).filter_by(id=task.user_id).first()
-        data.append([user.name, task.completed, task.uncompleted, task.coordination])
-
-    return export({u'日报': data}, "日报.xlsx")
+@app.errorhandler(403)
+def request_forbidden(error):
+    return render_template('error.html', error='request forbidden')
 
 
-@app.route("/")
+@app.before_request
+def before_request():
+    g.sql_session = Session()
+
+
+@app.teardown_request
+def teardown_request(exception):
+    sql_session = getattr(g, 'sql_session', None)
+    if sql_session is not None:
+        sql_session.close()
+
+
+@app.route('/')
 def main():
     if session.get('user'):
         return redirect('/userHome')
@@ -95,24 +101,26 @@ def show_sign_up():
 
 @app.route('/validateLogin', methods=['POST'])
 def validate_login():
+    _username = request.form['inputUserName']
+    _password = request.form['inputPassword']
+
     try:
-        _username = request.form['inputUserName']
-        _password = request.form['inputPassword']
-
-        global sql_session
-        user = sql_session.query(User).filter_by(username=_username).first()
-        
-        if user and check_password_hash(user.password, _password):
-            session['user'] = user.username
-            session['name'] = user.name
-            session['user_type'] = user.type
-            return redirect('/userHome')
-        else:
-            return render_template('error.html', error="用户名或密码错误")
-
+        user = g.sql_session.query(User).filter_by(username=_username).first()
     except Exception as e:
-        print(e)
         return render_template('error.html', error=str(e))
+
+    if user is None:
+        return render_template('error.html', error="The user don't exists")
+
+    if check_password_hash(user.password, _password):
+        session['user'] = user.username
+        session['name'] = user.name
+        session['type'] = user.type
+
+        return redirect('/userHome')
+
+    else:
+        return render_template('error.html', error="Account or password error")
 
 
 @app.route('/signUp', methods=['POST'])
@@ -121,36 +129,42 @@ def sign_up():
     _user_name = request.form['inputUserName']
     _password = request.form['inputPassword']
 
-    if _name and _user_name and _password:
+    username_list = g.sql_session.query(User.username).all()
+    if _user_name not in username_list:
+        user = User()
+        user.name = _name
+        user.username = _user_name
+        user.password = generate_password_hash(_password)
+        user.type = 1
 
-        _hashed_password = generate_password_hash(_password)
+        g.sql_session.add(user)
 
         try:
-            global engine
-            conn = engine.raw_connection()
-            cursor = conn.cursor()
-            cursor.callproc('sp_createUser', (_name, _user_name, _hashed_password))
-            data = cursor.fetchall()
-            cursor.close()
-
-            if len(data) is 0:
-                conn.commit()
-                session['user'] = _user_name
-                session['name'] = _name
-                return redirect('/userHome')
-            else:
-                return render_template('error.html', error="user already exists")
-
+            g.sql_session.commit()
         except Exception as e:
-            print(e)
-            return render_template('error.html', error=str(e))
+            flash(str(e))
+            g.sql_session.rollback()
+            return redirect('/signUp')
+
+        session['user'] = _user_name
+        session['name'] = _name
+        session['type'] = user.type
+        return redirect('/userHome')
+
+    else:
+        flash("The duplicated username")
+        return redirect('/signUp')
 
 
 @app.route('/userHome')
 def user_home():
-    report = get_last_report()
-    task = get_last_task()
-    user = sql_session.query(User).filter_by(username=session['user']).first()
+    _username = session['user']
+    report = get_last_report(_username)
+    task = get_last_task(_username)
+    try:
+        user = g.sql_session.query(User).filter_by(username=_username).first()
+    except Exception as e:
+        return render_template('error.html', error=str(e))
 
     if user:
         return render_template('user_home.html', type=user.type, report=report, task=task)
@@ -158,96 +172,96 @@ def user_home():
         return render_template('error.html', error='Unauthorized Access')
 
 
-@app.route('/reportList')
-def report_list():
-    reports = get_today_reports()
-    result_list = []
+def get_last_report(username):
+    try:
+        user_id = g.sql_session.query(User.id).filter_by(username=username).first().id
+        g.sql_session.flush()
+        reports = g.sql_session.query(Report).filter_by(user_id=user_id).order_by(Report.updated_time).all()
+    except Exception as e:
+        g.sql_session.callback()
+        flash(str(e))
+        return None
 
-    for report in reports:
-        user = sql_session.query(User).filter_by(id=report.user_id).first()
-        result_list.append((report, user))
+    if len(reports) > 0:
+        report = reports[-1]
+        if if_today(report.updated_time):
+            return report
+        else:
+            return None
+    else:
+        return None
 
-    return render_template('report_list.html', list=result_list)
+
+def if_today(updated_time):
+    today = datetime.today()
+    today = datetime(today.year, today.month, today.day)
+
+    return updated_time > today
+
+
+def get_last_task(username):
+    try:
+        user_id = g.sql_session.query(User.id).filter_by(username=username).first().id
+        g.sql_session.flush()
+        tasks = g.sql_session.query(Task).filter_by(user_id=user_id).order_by(Task.updated_time).all()
+    except Exception as e:
+        flash(str(e))
+        return None
+
+    if len(tasks) > 0:
+        task = tasks[-1]
+        if if_today(task.updated_time):
+            return task
+        else:
+            return None
+    else:
+        return None
 
 
 @app.route('/createReport')
 def show_report_form():
-    return render_template('report_form.html', name=session.get('name'), report=get_last_report())
+    return render_template('report_form.html', name=session.get('name'), report=get_last_report(session['user']))
 
 
 @app.route('/saveReport', methods=['POST'])
 def save_report():
-    global sql_session
+    report = Report()
+
+    report.user_id = g.sql_session.query(User).filter_by(username=session.get('user')).first().id
+    report.system_name = request.form['inputName']
+    report.status = request.form['inputStatus']
+    report.bugs = request.form['inputBugs']
+    report.updated_time = datetime.now()
 
     try:
-        report = get_last_report()
-        name = request.form['inputName']
-        status = request.form['inputStatus']
-        bugs = request.form['inputBugs']
-        updated_time = datetime.now()
-
-        if report is not None:
-            report.system_name = name
-            report.status = status
-            report.bugs = bugs
-            report.updated_time = updated_time
-        else:
-            user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
-            report = Report(user_id=user_id, system_name=name, status=status, bugs=bugs, updated_time=updated_time)
-            sql_session.add(report)
-
-        sql_session.commit()
+        g.sql_session.add(report)
+        g.sql_session.commit()
     except Exception as e:
-        print(e)
-        sql_session.rollback()
+        flash(str(e))
 
     return redirect('/userHome')
 
 
-@app.route('/dailyTaskList')
-def task_list():
-    tasks = get_today_tasks()
-    result_list = []
-
-    for task in tasks:
-        user = sql_session.query(User).filter_by(id=task.user_id).first()
-        result_list.append((task, user))
-
-    return render_template('task_list.html', list=result_list)
-
-
 @app.route('/createDailyTask')
 def show_task_form():
-    return render_template('task_form.html', name=session.get('name'), task=get_last_task())
+    return render_template('task_form.html', name=session.get('name'), task=get_last_report(session['user']))
 
 
 @app.route('/saveTask', methods=['POST'])
 def save_task():
-    global sql_session
+    task = Task()
+
+    task.user_id = g.sql_session.query(User).filter_by(username=session.get('user')).first().id
+    task.completed = request.form['completed']
+    task.uncompleted = request.form['uncompleted']
+    task.coordination = request.form['coordination']
+    task.updated_time = datetime.now()
 
     try:
-        task = get_last_task()
-
-        completed = request.form['completed']
-        uncompleted = request.form['uncompleted']
-        coordination = request.form['coordination']
-        updated_time = datetime.now()
-
-        if task is not None:
-            task.completed = completed
-            task.uncompleted = uncompleted
-            task.coordination = coordination
-            task.updated_time = updated_time
-        else:
-            user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
-            task = Task(user_id=user_id, completed=completed, uncompleted=uncompleted, coordination=coordination,
-                        updated_time=updated_time)
-            sql_session.add(task)
-
-        sql_session.commit()
+        g.sql_session.add(task)
+        g.sql_session.commit()
     except Exception as e:
-        print(e)
-        sql_session.rollback()
+        flash(str(e))
 
     return redirect('/userHome')
 
@@ -256,89 +270,110 @@ def save_task():
 def logout():
     session.pop('user', None)
     session.pop('name', None)
+    session.pop('type', None)
     return redirect('/')
 
 
-def get_last_report():
-    """get latest report"""
-    global sql_session
-    try:
-        user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
-        reports = sql_session.query(Report).filter_by(user_id=user_id).order_by(Report.updated_time)
-        report = None
+@app.route('/exportReport', methods=['GET'])
+def export_reports():
+    if session.get('type') != 2:
+        return render_template('error.html', error="You are not authorized")
 
-        if reports.first() is not None:
-            report = reports[-1]
+    data = [["系统名称", "负责人", "系统状态", "bug情况"]]
 
-        if report is not None and if_today(report.updated_time):
-            return report
-        else:
-            return None
+    for report in get_today_reports():
+        user = g.sql_session.query(User).filter_by(id=report.user_id).first()
+        data.append([report.system_name, user.name, report.status, report.bugs])
 
-    except Exception as e:
-        sql_session.rollback()
-        print(e)
-        return None
-
-
-def get_last_task():
-    """get latest daily task"""
-    global sql_session
-    try:
-        user_id = sql_session.query(User).filter_by(username=session.get('user')).first().id
-        tasks = sql_session.query(Task).filter_by(user_id=user_id).order_by(Task.updated_time)
-        task = None
-
-        if tasks.first() is not None:
-            task = tasks[-1]
-
-        if task is not None and if_today(task.updated_time):
-            return task
-        else:
-            return None
-
-    except Exception as e:
-        sql_session.rollback()
-        print(e)
-        return None
+    return export({u'系统运行报告': data}, "系统运行报告.xlsx")
 
 
 def get_today_reports():
-    """get reports created today"""
     today = datetime.today()
     today = datetime(today.year, today.month, today.day)
 
-    global sql_session
-    reports = sql_session.query(Report).filter(Report.updated_time > today)
+    try:
+        reports = g.sql_session.query(Report).filter(Report.updated_time > today).all()
+    except Exception as e:
+        flash(str(e))
+        return None
+
     return reports
 
 
+def export(excel_dict, file_name):
+    data = OrderedDict()
+    data.update(excel_dict)
+    io = StringIO()
+    save_data(io, data)
+    response = Response()
+    response.status_code = 200
+    response.data = io.getvalue()
+
+    response_headers = Headers({
+        'Pragma': "public",  # required,
+        'Expires': '0',
+        'Cache-Control': 'must-revalidate, post-check=0, pre-check=0',
+        'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        'Content-Disposition': 'attachment; filename=\"%s\";' % file_name,
+        'Content-Transfer-Encoding': 'binary',
+        'Content-Length': len(response.data)
+    })
+
+    response.headers = response_headers
+    return response
+
+
+@app.route('/exportTask', methods=['GET'])
+def export_tasks():
+    if session.get('type') != 2:
+        return render_template('error.html', error="You are not authorized")
+
+    data = [["姓名", "今日工作", "待完成", "需协调"]]
+
+    for task in get_today_tasks():
+        user = g.sql_session.query(User).filter_by(id=task.user_id).first()
+        data.append([user.name, task.completed, task.uncompleted, task.coordination])
+
+    return export({u'日报': data}, "日报.xlsx")
+
+
 def get_today_tasks():
-    """get tasks created today"""
     today = datetime.today()
     today = datetime(today.year, today.month, today.day)
 
-    global sql_session
-    
     try:
-        tasks = sql_session.query(Task).filter(Task.updated_time > today)
+        tasks = g.sql_session.query(Task).filter(Task.updated_time > today).all()
     except Exception as e:
-        sql_session.rollbaCK()
-        print(e)
+        flash(str(e))
+        return None
 
     return tasks
 
 
-def if_today(updated_time):
-    """
-    if updated_time is in today
-    :param updated_time:
-    """
-    today = datetime.today()
-    today = datetime(today.year, today.month, today.day)
+@app.route('/reportList')
+def report_list():
+    reports = get_today_reports()
+    result_list = []
 
-    return updated_time > today
+    for report in reports:
+        user = g.sql_session.query(User).filter_by(id=report.user_id).first()
+        result_list.append((report, user))
+
+    return render_template('report_list.html', list=result_list)
 
 
-if __name__ == "__main__":
+@app.route('/dailyTaskList')
+def task_list():
+    tasks = get_today_tasks()
+    result_list = []
+
+    for task in tasks:
+        user = g.sql_session.query(User).filter_by(id=task.user_id).first()
+        result_list.append((task, user))
+
+    return render_template('task_list.html', list=result_list)
+
+
+if __name__ == '__main__':
     app.run()
